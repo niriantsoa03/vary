@@ -1,0 +1,428 @@
+
+<style>
+.wrap{padding:1rem 0;font-family:var(--font-sans);color:var(--color-text-primary);}
+.section{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;}
+.sec-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.row label{font-size:13px;color:var(--color-text-secondary);min-width:170px;}
+.row input[type=range]{flex:1;}
+.val{font-size:13px;font-weight:500;color:var(--color-text-primary);min-width:65px;text-align:right;}
+.sessions{display:flex;flex-direction:column;gap:8px;}
+.sess-row{display:flex;align-items:center;gap:6px;font-size:13px;flex-wrap:wrap;}
+.sess-row label{color:var(--color-text-secondary);min-width:78px;}
+.sess-row input[type=number]{width:50px;padding:4px 6px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary);}
+.boost-toggle{display:flex;align-items:center;gap:5px;font-size:12px;padding:3px 8px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);cursor:pointer;background:var(--color-background-secondary);color:var(--color-text-secondary);transition:background .15s;}
+.boost-toggle.active{background:#E1F5EE;border-color:#1D9E75;color:#085041;}
+.boost-toggle .dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
+.add-btn{font-size:12px;padding:4px 10px;margin-top:4px;cursor:pointer;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-secondary);}
+.add-btn:hover{background:var(--color-background-secondary);}
+.del-btn{font-size:12px;padding:2px 7px;cursor:pointer;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-danger);}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:1rem;}
+.met{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.6rem .8rem;}
+.met-l{font-size:11px;color:var(--color-text-secondary);margin-bottom:2px;}
+.met-v{font-size:17px;font-weight:500;}
+.met-u{font-size:11px;color:var(--color-text-secondary);}
+.water-grid{display:grid;gap:8px;margin-bottom:1rem;}
+.wcard-wrap{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.75rem 1rem;}
+.wcard-wrap.boosted{border-color:#1D9E75;border-width:1.5px;}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px;font-size:12px;color:var(--color-text-secondary);}
+.ld{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;}
+.warn{font-size:12px;color:var(--color-text-danger);margin-top:6px;padding:6px 10px;background:var(--color-background-danger);border-radius:var(--border-radius-md);display:none;}
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:.75rem 0;}
+</style>
+
+<div class="wrap">
+
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;">
+    <button class="add-btn" onclick="exportState()" style="padding:5px 14px;font-size:12px;font-weight:500;">Export JSON</button>
+    <button class="add-btn" onclick="g('importFile').click()" style="padding:5px 14px;font-size:12px;font-weight:500;">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importState(event)">
+    <span id="importMsg" style="font-size:12px;color:var(--color-text-secondary);"></span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div class="section">
+      <div class="sec-title">PV panel</div>
+      <div class="row"><label>Peak power (Wp)</label><input type="range" id="pvPeak" min="50" max="500" step="10" value="120"><span class="val" id="pvPeakV">120 Wp</span></div>
+      <div class="row"><label>Irradiance peak (W/m²)</label><input type="range" id="irrPeak" min="400" max="1200" step="50" value="1000"><span class="val" id="irrPeakV">1000 W/m²</span></div>
+      <div class="row"><label>Solar noon (h)</label><input type="range" id="solarNoon" min="10" max="14" step="0.5" value="12"><span class="val" id="solarNoonV">12:00</span></div>
+      <div class="row"><label>Sunrise (h)</label><input type="range" id="sunrise" min="4" max="8" step="0.5" value="6"><span class="val" id="sunriseV">6:00</span></div>
+      <div class="row"><label>Sunset (h)</label><input type="range" id="sunset" min="16" max="20" step="0.5" value="18"><span class="val" id="sunsetV">18:00</span></div>
+    </div>
+    <div class="section">
+      <div class="sec-title">Converter &amp; battery</div>
+      <div class="row"><label>Converter efficiency (%)</label><input type="range" id="convEff" min="60" max="99" step="1" value="90"><span class="val" id="convEffV">90 %</span></div>
+      <div class="row"><label>Battery voltage (V)</label><input type="range" id="batV" min="12" max="48" step="12" value="12"><span class="val" id="batVV">12 V</span></div>
+      <div class="row"><label>Battery capacity (Ah)</label><input type="range" id="batAh" min="10" max="200" step="5" value="20"><span class="val" id="batAhV">20 Ah</span></div>
+      <div class="row"><label>Initial SoC (%)</label><input type="range" id="initSoc" min="0" max="100" step="5" value="50"><span class="val" id="initSocV">50 %</span></div>
+      <div class="row"><label>Max discharge power (W)</label><input type="range" id="maxDis" min="10" max="500" step="10" value="100"><span class="val" id="maxDisV">100 W</span></div>
+      <div class="row"><label>Max charge power (W)</label><input type="range" id="maxCharge" min="10" max="200" step="5" value="40"><span class="val" id="maxChargeV">40 W</span></div>
+      <div class="row"><label>Min SoC cutoff (%)</label><input type="range" id="minSoc" min="0" max="50" step="5" value="20"><span class="val" id="minSocV">20 %</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">Cooking load &amp; sessions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="row" style="margin-bottom:0;"><label>Cooking power (W)</label><input type="range" id="cookPow" min="30" max="800" step="5" value="70"><span class="val" id="cookPowV">70 W</span></div>
+      <div class="row" style="margin-bottom:0;"><label>Water temp start (°C)</label><input type="range" id="waterTemp" min="5" max="40" step="1" value="25"><span class="val" id="waterTempV">25 °C</span></div>
+      <div class="row" style="margin-bottom:0;"><label>Real-world loss (%)</label><input type="range" id="heatLoss" min="0" max="50" step="5" value="25"><span class="val" id="heatLossV">25 %</span></div>
+    </div>
+    <hr class="divider">
+    <div class="sec-title" style="margin-top:.5rem;">Sessions — toggle "boost" to combine PV + battery simultaneously</div>
+    <div class="sessions" id="sessions">
+      <div class="sess-row"><label>Session 1</label>Start <input type="number" min="0" max="23" value="6" class="s-start"> End <input type="number" min="1" max="24" value="8" class="s-end"> Power(W) <input type="number" min="10" max="2000" value="70" class="s-pow"> <button class="boost-toggle" onclick="toggleBoost(this)" title="Combine PV + battery power"><span class="dot"></span>boost off</button><button class="del-btn" onclick="delSession(this)">remove</button></div>
+      <div class="sess-row"><label>Session 2</label>Start <input type="number" min="0" max="23" value="11" class="s-start"> End <input type="number" min="1" max="24" value="13" class="s-end"> Power(W) <input type="number" min="10" max="2000" value="70" class="s-pow"> <button class="boost-toggle active" onclick="toggleBoost(this)" title="Combine PV + battery power"><span class="dot"></span>boost ON</button><button class="del-btn" onclick="delSession(this)">remove</button></div>
+      <div class="sess-row"><label>Session 3</label>Start <input type="number" min="0" max="23" value="18" class="s-start"> End <input type="number" min="1" max="24" value="20" class="s-end"> Power(W) <input type="number" min="10" max="2000" value="70" class="s-pow"> <button class="boost-toggle" onclick="toggleBoost(this)" title="Combine PV + battery power"><span class="dot"></span>boost off</button><button class="del-btn" onclick="delSession(this)">remove</button></div>
+    </div>
+    <button class="add-btn" onclick="addSession()">+ add session</button>
+    <div class="warn" id="warn">Battery hit min SoC cutoff during a session — increase battery capacity, lower the cutoff, reduce load, or disable boost.</div>
+  </div>
+
+  <div class="sec-title" style="padding-left:2px;">Energy summary</div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="sec-title" style="padding-left:2px;">Water boiling capacity per session</div>
+  <div class="water-grid" id="waterBox"></div>
+
+  <div class="section">
+    <div class="legend">
+      <span><span class="ld" style="background:#EF9F27"></span>PV power (W)</span>
+      <span><span class="ld" style="background:#E24B4A"></span>Load delivered (W)</span>
+      <span><span class="ld" style="background:#7F77DD"></span>Battery discharge to load (W)</span>
+      <span><span class="ld" style="background:#1D9E75"></span>Charge power (W)</span>
+    </div>
+    <div style="position:relative;width:100%;height:230px;"><canvas id="pwrChart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <div class="legend">
+      <span><span class="ld" style="background:#378ADD"></span>Battery SoC (%)</span>
+      <span><span class="ld" style="background:#7F77DD;opacity:.35"></span>Boost session</span>
+      <span><span class="ld" style="background:#E24B4A;opacity:.25"></span>Normal cook session</span>
+    </div>
+    <div style="position:relative;width:100%;height:190px;"><canvas id="socChart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">Converter mode timeline</div>
+    <div id="modeBar" style="width:100%;height:22px;border-radius:4px;overflow:hidden;display:flex;"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+      <span style="font-size:10px;color:var(--color-text-secondary)">0h</span>
+      <span style="font-size:10px;color:var(--color-text-secondary)">6h</span>
+      <span style="font-size:10px;color:var(--color-text-secondary)">12h</span>
+      <span style="font-size:10px;color:var(--color-text-secondary)">18h</span>
+      <span style="font-size:10px;color:var(--color-text-secondary)">24h</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:11px;color:var(--color-text-secondary);">
+      <span><span class="ld" style="background:#7F77DD"></span>Boost mode (PV + battery)</span>
+      <span><span class="ld" style="background:#1D9E75"></span>Cook (PV only)</span>
+      <span><span class="ld" style="background:#378ADD"></span>Buck – charging</span>
+      <span><span class="ld" style="background:#B4B2A9"></span>Idle</span>
+      <span><span class="ld" style="background:#E24B4A"></span>Depleted</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let pwrCI=null,socCI=null,sessCount=3;
+
+function hStr(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return hh.toString().padStart(2,'0')+':'+mm.toString().padStart(2,'0');}
+function g(id){return document.getElementById(id);}
+
+function slider(id,outId,fmt){
+  const el=g(id);
+  el.addEventListener('input',()=>{g(outId).textContent=fmt(+el.value);runSim();});
+  g(outId).textContent=fmt(+el.value);
+}
+slider('pvPeak',   'pvPeakV',   v=>v+' Wp');
+slider('irrPeak',  'irrPeakV',  v=>v+' W/m²');
+slider('solarNoon','solarNoonV',v=>hStr(v));
+slider('sunrise',  'sunriseV',  v=>hStr(v));
+slider('sunset',   'sunsetV',   v=>hStr(v));
+slider('convEff',  'convEffV',  v=>v+' %');
+slider('batV',     'batVV',     v=>v+' V');
+slider('batAh',    'batAhV',    v=>v+' Ah');
+slider('initSoc',  'initSocV',  v=>v+' %');
+slider('maxDis',   'maxDisV',   v=>v+' W');
+slider('maxCharge','maxChargeV',v=>v+' W');
+slider('minSoc',   'minSocV',   v=>v+' %');
+slider('cookPow',  'cookPowV',  v=>v+' W');
+slider('waterTemp','waterTempV',v=>v+' °C');
+slider('heatLoss', 'heatLossV', v=>v+' %');
+
+g('sessions').addEventListener('input',runSim);
+
+function toggleBoost(btn){
+  btn.classList.toggle('active');
+  btn.innerHTML=btn.classList.contains('active')?'<span class="dot"></span>boost ON':'<span class="dot"></span>boost off';
+  runSim();
+}
+
+function addSession(){
+  sessCount++;
+  const d=document.createElement('div');
+  d.className='sess-row';
+  d.innerHTML=`<label>Session ${sessCount}</label>Start <input type="number" min="0" max="23" value="7" class="s-start"> End <input type="number" min="1" max="24" value="9" class="s-end"> Power(W) <input type="number" min="10" max="2000" value="70" class="s-pow"> <button class="boost-toggle" onclick="toggleBoost(this)"><span class="dot"></span>boost off</button><button class="del-btn" onclick="delSession(this)">remove</button>`;
+  g('sessions').appendChild(d);
+  d.addEventListener('input',runSim);
+  runSim();
+}
+function delSession(btn){btn.closest('.sess-row').remove();runSim();}
+
+function getSessions(){
+  return Array.from(document.querySelectorAll('.sess-row')).map(r=>({
+    start:+r.querySelector('.s-start').value,
+    end:+r.querySelector('.s-end').value,
+    power:+r.querySelector('.s-pow').value,
+    boost:r.querySelector('.boost-toggle').classList.contains('active')
+  })).filter(s=>s.end>s.start);
+}
+
+function waterLitres(energyWh,waterTempC,lossPercent){
+  const J=energyWh*3600;
+  const effJ=J*(1-lossPercent/100);
+  const cp=4186,dT=100-waterTempC;
+  return{ideal:J/(cp*dT),practical:effJ/(cp*dT)};
+}
+
+function runSim(){
+  const pvPeak  =+g('pvPeak').value;
+  const irrPeak =+g('irrPeak').value;
+  const noon    =+g('solarNoon').value;
+  const rise    =+g('sunrise').value;
+  const set_    =+g('sunset').value;
+  const eff     =+g('convEff').value/100;
+  const batVolt =+g('batV').value;
+  const batAh_  =+g('batAh').value;
+  const batWh   =batVolt*batAh_;
+  const initSoc =+g('initSoc').value/100;
+  const maxDis  =+g('maxDis').value;
+  const maxCh   =+g('maxCharge').value;
+  const minSocWh=batVolt*batAh_*(+g('minSoc').value/100);
+  const waterT  =+g('waterTemp').value;
+  const lossP   =+g('heatLoss').value;
+  const sessions=getSessions();
+
+  const STEP=0.25;
+  let socWh=batWh*initSoc;
+  const hours=[],pvArr=[],loadArr=[],batDisArr=[],chargeArr=[],socArr=[],modeArr=[];
+  let depleted=false;
+
+  function irrad(h){
+    if(h<rise||h>set_)return 0;
+    const span=set_-rise;
+    const raw=Math.sin(Math.PI*(h-rise)/span);
+    const norm=Math.sin(Math.PI*(noon-rise)/span);
+    return irrPeak*raw/Math.max(norm,0.001);
+  }
+  function pvPow(h){return Math.max(0,irrad(h)/irrPeak*pvPeak);}
+  function getSession(h){return sessions.find(s=>h>=s.start&&h<s.end)||null;}
+
+  for(let h=0;h<=24;h+=STEP){
+    const pv=pvPow(h);
+    const sess=getSession(h);
+    let mode='idle',chargeW=0,loadW=0,batDisW=0;
+
+    if(sess){
+      const cookW=sess.power;
+      if(sess.boost){
+        // Combined mode: PV + battery discharge simultaneously and additively
+        const pvContrib=pv*eff;
+        const available=Math.min(maxDis,socWh/STEP);
+        batDisW=socWh>minSocWh?available:0;
+        loadW=pvContrib+batDisW;
+        const disWh=batDisW*STEP;
+        if(socWh<=minSocWh&&pvContrib<cookW){mode='depleted';depleted=true;}
+        else{socWh=Math.max(minSocWh,socWh-disWh);mode='boost-combined';}
+      } else {
+        // Normal: PV first, battery only covers deficit
+        const pvContrib=Math.min(pv*eff,cookW);
+        const deficit=cookW-pvContrib;
+        loadW=pvContrib;
+        if(deficit>0){
+          if(socWh<=minSocWh){mode='depleted';depleted=true;}
+          else{
+            batDisW=Math.min(deficit,maxDis,(socWh-minSocWh)/STEP);
+            loadW+=batDisW;
+            socWh=Math.max(minSocWh,socWh-batDisW*STEP);
+            mode='boost';
+          }
+        } else {mode='boost';}
+      }
+    } else if(pv>5&&socWh<batWh){
+      chargeW=Math.min(pv*eff,maxCh,(batWh-socWh)/STEP);
+      socWh=Math.min(batWh,socWh+chargeW*STEP);
+      mode='buck';
+    }
+
+    hours.push(h);
+    pvArr.push(+pv.toFixed(1));
+    loadArr.push(+loadW.toFixed(1));
+    batDisArr.push(+batDisW.toFixed(1));
+    chargeArr.push(+chargeW.toFixed(1));
+    socArr.push(+((socWh/batWh)*100).toFixed(1));
+    modeArr.push(mode);
+  }
+
+  const shortL=hours.map(h=>h%3===0?Math.floor(h)+'h':'');
+  const totalPV=pvArr.reduce((a,b)=>a+b*STEP,0);
+  const totalLoad=loadArr.reduce((a,b)=>a+b*STEP,0);
+  const totalChg=chargeArr.reduce((a,b)=>a+b*STEP,0);
+  const finalSoc=socArr[socArr.length-1];
+  const peakLoad=Math.max(...loadArr);
+
+  g('metrics').innerHTML=`
+    <div class="met"><div class="met-l">Total PV energy</div><div class="met-v">${totalPV.toFixed(0)} <span class="met-u">Wh</span></div></div>
+    <div class="met"><div class="met-l">Total delivered to load</div><div class="met-v">${totalLoad.toFixed(0)} <span class="met-u">Wh</span></div></div>
+    <div class="met"><div class="met-l">Energy to battery</div><div class="met-v">${totalChg.toFixed(0)} <span class="met-u">Wh</span></div></div>
+    <div class="met"><div class="met-l">Final SoC</div><div class="met-v">${finalSoc.toFixed(0)} <span class="met-u">%</span></div></div>
+  `;
+
+  g('warn').style.display=depleted?'block':'none';
+
+  function getSession_h(h){return sessions.find(s=>h>=s.start&&h<s.end)||null;}
+
+  let waterHTML='';
+  const cols=Math.min(sessions.length,3);
+  sessions.forEach((s,i)=>{
+    let eWh=0;
+    for(let h=s.start;h<s.end;h+=STEP){
+      const pv=pvPow(h);
+      const pvC=pv*eff;
+      const deficit=s.power-Math.min(pvC,s.power);
+      if(s.boost){
+        eWh+=(pvC+Math.min(maxDis,s.power))*STEP;
+      } else {
+        eWh+=Math.min(pvC,s.power)*STEP;
+        if(deficit>0) eWh+=Math.min(deficit,maxDis)*STEP;
+      }
+    }
+    const w=waterLitres(eWh,waterT,lossP);
+    const isB=s.boost;
+    waterHTML+=`
+      <div class="wcard-wrap${isB?' boosted':''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:500;color:var(--color-text-secondary);">Session ${i+1} &nbsp;(${s.start}h–${s.end}h)</span>
+          ${isB?'<span style="font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:4px;">PV + battery</span>':'<span style="font-size:10px;background:var(--color-background-secondary);color:var(--color-text-secondary);padding:2px 7px;border-radius:4px;">PV only</span>'}
+        </div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;">Load: ${s.power} W &nbsp;|&nbsp; Energy delivered: ${eWh.toFixed(0)} Wh</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:#E1F5EE;border-radius:var(--border-radius-md);padding:6px 8px;">
+            <div style="font-size:10px;color:#085041;margin-bottom:2px;">Theoretical</div>
+            <div style="font-size:17px;font-weight:500;color:#085041;">${w.ideal.toFixed(2)} <span style="font-size:11px;">L</span></div>
+          </div>
+          <div style="background:#E6F1FB;border-radius:var(--border-radius-md);padding:6px 8px;">
+            <div style="font-size:10px;color:#0C447C;margin-bottom:2px;">Practical (−${lossP}%)</div>
+            <div style="font-size:17px;font-weight:500;color:#0C447C;">${w.practical.toFixed(2)} <span style="font-size:11px;">L</span></div>
+          </div>
+        </div>
+      </div>`;
+  });
+  const wg=g('waterBox');
+  wg.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
+  wg.innerHTML=waterHTML||'<div style="font-size:13px;color:var(--color-text-secondary);">No sessions defined.</div>';
+
+  const modeColors={'boost-combined':'#7F77DD',boost:'#1D9E75',buck:'#378ADD',idle:'#D3D1C7',depleted:'#E24B4A'};
+  g('modeBar').innerHTML=modeArr.map(m=>`<div style="flex:1;background:${modeColors[m]||'#D3D1C7'}"></div>`).join('');
+
+  if(pwrCI)pwrCI.destroy();
+  pwrCI=new Chart(g('pwrChart'),{
+    type:'line',
+    data:{labels:shortL,datasets:[
+      {label:'PV',      data:pvArr,    borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.10)',fill:true,tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Load',    data:loadArr,  borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.08)', fill:true,tension:0,  pointRadius:0,borderWidth:2},
+      {label:'BatDis',  data:batDisArr,borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,0.10)',fill:true,tension:0,  pointRadius:0,borderWidth:1.5,borderDash:[3,2]},
+      {label:'Charge',  data:chargeArr,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:10},color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}},
+              y:{min:0,ticks:{font:{size:10},color:'#888',callback:v=>v+'W'},grid:{color:'rgba(128,128,128,0.1)'}}}}
+  });
+
+  function isCookingBoost(h){return sessions.some(s=>h>=s.start&&h<s.end&&s.boost);}
+  function isCookingNormal(h){return sessions.some(s=>h>=s.start&&h<s.end&&!s.boost);}
+
+  if(socCI)socCI.destroy();
+  socCI=new Chart(g('socChart'),{
+    type:'line',
+    data:{labels:shortL,datasets:[
+      {data:socArr,borderColor:'#378ADD',backgroundColor:'rgba(55,138,221,0.12)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+      {data:hours.map(h=>isCookingBoost(h)?100:null),  borderColor:'rgba(0,0,0,0)',backgroundColor:'rgba(127,119,221,0.13)',fill:true,pointRadius:0,borderWidth:0},
+      {data:hours.map(h=>isCookingNormal(h)?100:null), borderColor:'rgba(0,0,0,0)',backgroundColor:'rgba(226,75,74,0.07)', fill:true,pointRadius:0,borderWidth:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:10},color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}},
+              y:{min:0,max:100,ticks:{font:{size:10},color:'#888',callback:v=>v+'%'},grid:{color:'rgba(128,128,128,0.1)'}}}}
+  });
+
+  function isCookingBoost(h){return sessions.some(s=>h>=s.start&&h<s.end&&s.boost);}
+  function isCookingNormal(h){return sessions.some(s=>h>=s.start&&h<s.end&&!s.boost);}
+}
+
+const SLIDER_IDS=['pvPeak','irrPeak','solarNoon','sunrise','sunset',
+                  'convEff','batV','batAh','initSoc','maxDis','maxCharge','minSoc',
+                  'cookPow','waterTemp','heatLoss'];
+
+function exportState(){
+  const sliders={};
+  SLIDER_IDS.forEach(id=>sliders[id]=+g(id).value);
+  const sessions=Array.from(document.querySelectorAll('.sess-row')).map(r=>({
+    start:+r.querySelector('.s-start').value,
+    end:+r.querySelector('.s-end').value,
+    power:+r.querySelector('.s-pow').value,
+    boost:r.querySelector('.boost-toggle').classList.contains('active')
+  }));
+  const state={version:'vary-sim-v1',exported:new Date().toISOString(),sliders,sessions};
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='vary-simulation.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importState(evt){
+  const file=evt.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const state=JSON.parse(e.target.result);
+      if(state.version!=='vary-sim-v1')throw new Error('Unknown file version');
+      SLIDER_IDS.forEach(id=>{
+        if(state.sliders[id]!==undefined){
+          const el=g(id);
+          el.value=state.sliders[id];
+          el.dispatchEvent(new Event('input'));
+        }
+      });
+      const container=g('sessions');
+      container.innerHTML='';
+      sessCount=0;
+      state.sessions.forEach(s=>{
+        sessCount++;
+        const d=document.createElement('div');
+        d.className='sess-row';
+        const boostActive=s.boost;
+        d.innerHTML=`<label>Session ${sessCount}</label>Start <input type="number" min="0" max="23" value="${s.start}" class="s-start"> End <input type="number" min="1" max="24" value="${s.end}" class="s-end"> Power(W) <input type="number" min="10" max="2000" value="${s.power}" class="s-pow"> <button class="boost-toggle${boostActive?' active':''}" onclick="toggleBoost(this)"><span class="dot"></span>${boostActive?'boost ON':'boost off'}</button><button class="del-btn" onclick="delSession(this)">remove</button>`;
+        d.addEventListener('input',runSim);
+        container.appendChild(d);
+      });
+      g('importMsg').textContent='Loaded: '+file.name;
+      setTimeout(()=>g('importMsg').textContent='',3000);
+      evt.target.value='';
+      runSim();
+    }catch(err){
+      g('importMsg').textContent='Error: '+err.message;
+      setTimeout(()=>g('importMsg').textContent='',4000);
+      evt.target.value='';
+    }
+  };
+  reader.readAsText(file);
+}
+
+runSim();
+</script>

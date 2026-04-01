@@ -1,0 +1,42 @@
+{
+  "version": "vary-sim-v1",
+  "exported": "2026-04-01T11:55:49.753Z",
+  "sliders": {
+    "pvPeak": 120,
+    "irrPeak": 1000,
+    "solarNoon": 12,
+    "sunrise": 6,
+    "sunset": 18,
+    "convEff": 87,
+    "batV": 12,
+    "batAh": 20,
+    "initSoc": 50,
+    "maxDis": 100,
+    "maxCharge": 110,
+    "minSoc": 20,
+    "cookPow": 120,
+    "waterTemp": 25,
+    "heatLoss": 25
+  },
+  "sessions": [
+    {
+      "start": 6,
+      "end": 7,
+      "power": 100,
+      "boost": false
+    },
+    {
+      "start": 11,
+      "end": 12,
+      "power": 150,
+      "boost": true
+    },
+    {
+      "start": 18,
+      "end": 20,
+      "power": 110,
+      "boost": false
+    }
+  ]
+}
+
