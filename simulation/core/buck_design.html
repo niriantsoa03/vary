@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VARY — Buck Converter Design Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --teal: #39d0a0;
+    --purple: #bc8cff;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+  .top-bar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  .top-bar .logo { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--teal); letter-spacing: 0.05em; }
+  .top-bar .subtitle { font-size: 12px; color: var(--muted); }
+  .badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 0; height: calc(100vh - 53px); }
+
+  .sidebar { background: var(--bg2); border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; }
+
+  .section-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+
+  .param-group { display: flex; flex-direction: column; gap: 12px; }
+  .param { display: flex; flex-direction: column; gap: 4px; }
+  .param label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .param label span { font-family: var(--font-mono); color: var(--text); font-size: 13px; }
+  .param input[type=range] { width: 100%; accent-color: var(--teal); height: 4px; cursor: pointer; }
+  .param input[type=number] { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 13px; width: 100%; outline: none; }
+  .param input[type=number]:focus { border-color: var(--teal); }
+  .param .hint { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  .divider { height: 1px; background: var(--border); }
+
+  .main { overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .result-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .result-card .r-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .result-card .r-val { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--teal); }
+  .result-card .r-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .result-card .r-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .chart-card h3 { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .analysis-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .analysis-card h3 { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .table { width: 100%; border-collapse: collapse; }
+  .table td { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .table td:last-child { text-align: right; font-family: var(--font-mono); color: var(--text); }
+  .table td:first-child { color: var(--muted); }
+  .table tr:last-child td { border-bottom: none; }
+
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); }
+  .tag.ok { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .tag.warn { background: rgba(210,153,34,0.15); color: var(--amber); border: 1px solid rgba(210,153,34,0.3); }
+  .tag.err { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+
+  .constraint-box { background: var(--bg3); border-radius: 6px; padding: 12px; margin-top: 8px; font-family: var(--font-mono); font-size: 12px; line-height: 1.8; }
+  .constraint-box .c-label { color: var(--muted); }
+  .constraint-box .c-val { color: var(--text); }
+  .constraint-box .c-pass { color: var(--green); }
+  .constraint-box .c-fail { color: var(--red); }
+
+  .mosfet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mosfet-card { background: var(--bg3); border-radius: 6px; padding: 12px; }
+  .mosfet-card .m-title { font-size: 11px; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .mosfet-card .m-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mosfet-card .m-dot.hs { background: var(--accent); }
+  .mosfet-card .m-dot.ls { background: var(--purple); }
+  .mosfet-table td { font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+  .mosfet-table td:last-child { color: var(--text); }
+  .mosfet-table tr:last-child td { border-bottom: none; }
+
+  .water-box { display: flex; align-items: center; gap: 24px; padding: 16px; background: var(--bg3); border-radius: 8px; }
+  .water-val { font-family: var(--font-mono); font-size: 32px; font-weight: 700; }
+  .water-label { font-size: 12px; color: var(--muted); }
+
+  .formula-box { background: var(--bg3); border-radius: 6px; padding: 10px 14px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); line-height: 2; }
+  .formula-box span { color: var(--text); }
+
+  .phase-header { display: flex; align-items: center; gap: 10px; }
+  .phase-badge { background: rgba(88,166,255,0.15); color: var(--accent); border: 1px solid rgba(88,166,255,0.3); font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; }
+
+  .scroll-hint { font-size: 11px; color: var(--muted); text-align: center; padding: 8px; }
+
+  .btn { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 11px; padding: 5px 12px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: border-color 0.15s, color 0.15s; }
+  .btn:hover { border-color: var(--teal); color: var(--teal); }
+  .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px); background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 8px 18px; border-radius: 6px; opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { border-color: rgba(63,185,80,0.5); color: var(--green); }
+  .toast.err { border-color: rgba(248,81,73,0.5); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">VARY</div>
+  <div class="subtitle">Synchronous Buck Converter — Design Calculator</div>
+  <div style="flex:1"></div>
+  <button class="btn" onclick="exportParams()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>
+    Export
+  </button>
+  <button class="btn" onclick="document.getElementById('fileInput').click()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>
+    Import
+  </button>
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importParams(event)">
+  <div class="badge">Phase 1</div>
+  <div class="badge">v1.0</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="layout">
+
+  <!-- SIDEBAR: inputs -->
+  <div class="sidebar">
+
+    <div>
+      <div class="section-label">PV Source Parameters</div>
+      <div class="param-group">
+        <div class="param">
+          <label>V_in max (PV Voc worst case) <span id="lbl_vin_max">25</span> V</label>
+          <input type="range" id="vin_max" min="18" max="40" step="1" value="25">
+        </div>
+        <div class="param">
+          <label>V_in nominal (PV Vmp) <span id="lbl_vin_nom">18</span> V</label>
+          <input type="range" id="vin_nom" min="12" max="35" step="0.5" value="18">
+        </div>
+        <div class="param">
+          <label>PV peak power <span id="lbl_ppv">120</span> Wp</label>
+          <input type="range" id="ppv" min="50" max="200" step="10" value="120">
+        </div>
+        <div class="param">
+          <label>I_mpp (PV MPP current) <span id="lbl_impp">6.67</span> A</label>
+          <input type="range" id="impp" min="1" max="15" step="0.01" value="6.67">
+          <div class="hint">≈ P_wp / V_mpp</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Output Parameters</div>
+      <div class="param-group">
+        <div class="param">
+          <label>V_out (battery / load) <span id="lbl_vout">12</span> V</label>
+          <input type="range" id="vout" min="5" max="24" step="1" value="12">
+        </div>
+        <div class="param">
+          <label>P_max (design power) <span id="lbl_pmax">150</span> W</label>
+          <input type="range" id="pmax" min="50" max="300" step="10" value="150">
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Converter Design Parameters</div>
+      <div class="param-group">
+        <div class="param">
+          <label>Switching frequency f_sw <span id="lbl_fsw">50</span> kHz</label>
+          <input type="range" id="fsw" min="20" max="200" step="5" value="50">
+          <div class="hint">Higher → smaller L, more switching loss</div>
+        </div>
+        <div class="param">
+          <label>Current ripple ΔI_L <span id="lbl_ripple_i">30</span> %</label>
+          <input type="range" id="ripple_i" min="10" max="50" step="5" value="30">
+          <div class="hint">% of I_out_max. Target 20–30%</div>
+        </div>
+        <div class="param">
+          <label>Voltage ripple ΔV_out <span id="lbl_ripple_v">1</span> %</label>
+          <input type="range" id="ripple_v" min="0.5" max="5" step="0.5" value="1">
+          <div class="hint">% of V_out. Target &lt;1%</div>
+        </div>
+        <div class="param">
+          <label>MOSFET R_ds(on) estimate <span id="lbl_rdson">8</span> mΩ</label>
+          <input type="range" id="rdson" min="2" max="50" step="1" value="8">
+          <div class="hint">Per FET. Lower → less conduction loss</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="section-label">Cooking Load</div>
+      <div class="param-group">
+        <div class="param">
+          <label>Cooking power P_cook <span id="lbl_pcook">70</span> W</label>
+          <input type="range" id="pcook" min="30" max="200" step="5" value="70">
+        </div>
+        <div class="param">
+          <label>Ambient temperature T₀ <span id="lbl_t0">25</span> °C</label>
+          <input type="range" id="t0" min="15" max="35" step="1" value="25">
+        </div>
+        <div class="param">
+          <label>Heat loss factor η_loss <span id="lbl_hloss">25</span> %</label>
+          <input type="range" id="hloss" min="10" max="50" step="5" value="25">
+        </div>
+        <div class="param">
+          <label>Cooking session duration <span id="lbl_tsess">2</span> h</label>
+          <input type="range" id="tsess" min="0.5" max="4" step="0.5" value="2">
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MAIN: results -->
+  <div class="main">
+
+    <!-- Key results -->
+    <div>
+      <div class="phase-header" style="margin-bottom:14px">
+        <span class="phase-badge">Phase 1 — Bench Design</span>
+        <span style="font-size:12px;color:var(--muted)">Synchronous Buck Converter</span>
+      </div>
+      <div class="results-grid">
+        <div class="result-card">
+          <div class="r-label">Duty cycle D (nominal)</div>
+          <div class="r-val" id="res_D">0.67</div>
+          <div class="r-sub" id="res_D_range">range: 0.48 – 0.80</div>
+        </div>
+        <div class="result-card">
+          <div class="r-label">Inductor L</div>
+          <div><span class="r-val" id="res_L">8.8</span><span class="r-unit">μH</span></div>
+          <div class="r-sub" id="res_L_iripple">ΔI_L = 3.75 A</div>
+        </div>
+        <div class="result-card">
+          <div class="r-label">Output capacitor C_out</div>
+          <div><span class="r-val" id="res_Cout">391</span><span class="r-unit">μF</span></div>
+          <div class="r-sub" id="res_Cout_vripple">ΔV = 120 mV</div>
+        </div>
+        <div class="result-card">
+          <div class="r-label">Input capacitor C_in</div>
+          <div><span class="r-val" id="res_Cin">137</span><span class="r-unit">μF</span></div>
+          <div class="r-sub">input decoupling</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Duty cycle vs V_in</h3>
+        <div style="position:relative;height:200px">
+          <canvas id="chartDuty" role="img" aria-label="Duty cycle versus input voltage curve"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Power loss breakdown at P_max</h3>
+        <div style="position:relative;height:200px">
+          <canvas id="chartLoss" role="img" aria-label="Power loss breakdown pie chart"></canvas>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted);flex-wrap:wrap" id="loss_legend"></div>
+      </div>
+    </div>
+
+    <!-- MOSFET + Efficiency -->
+    <div class="analysis-grid">
+      <div class="analysis-card">
+        <h3>MOSFET Minimum Ratings</h3>
+        <div class="mosfet-grid">
+          <div class="mosfet-card">
+            <div class="m-title"><div class="m-dot hs"></div> High-side switch</div>
+            <table class="table mosfet-table">
+              <tr><td>V_ds min</td><td id="hs_vds">—</td></tr>
+              <tr><td>I_ds min</td><td id="hs_ids">—</td></tr>
+              <tr><td>P_cond</td><td id="hs_pcond">—</td></tr>
+              <tr><td>Suggested</td><td id="hs_suggest" style="color:var(--teal)">—</td></tr>
+            </table>
+          </div>
+          <div class="mosfet-card">
+            <div class="m-title"><div class="m-dot ls"></div> Low-side switch</div>
+            <table class="table mosfet-table">
+              <tr><td>V_ds min</td><td id="ls_vds">—</td></tr>
+              <tr><td>I_ds min</td><td id="ls_ids">—</td></tr>
+              <tr><td>P_cond</td><td id="ls_pcond">—</td></tr>
+              <tr><td>Suggested</td><td id="ls_suggest" style="color:var(--purple)">—</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <table class="table">
+            <tr><td>Estimated efficiency</td><td><span id="res_eff" style="font-size:15px">—</span></td></tr>
+            <tr><td>Total power loss</td><td id="res_ploss">—</td></tr>
+            <tr><td>I_out max</td><td id="res_iout">—</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="analysis-card">
+        <h3>R_pvc &lt; R_mpp Constraint Check</h3>
+        <div class="constraint-box" id="constraint_box">
+          <!-- filled by JS -->
+        </div>
+        <div style="margin-top:14px">
+          <h3 style="margin-bottom:10px">Cooking load sizing</h3>
+          <table class="table">
+            <tr><td>R_pvc (PV-fed, CookingLoad_pvc)</td><td id="res_rload2">—</td></tr>
+            <tr><td>R_mpp (PV impedance at MPP)</td><td id="res_rmpp">—</td></tr>
+            <tr><td>Constraint R_pvc &lt; R_mpp</td><td id="res_check">—</td></tr>
+            <tr><td>R_batc (battery-fed, CookingLoad_batc)</td><td id="res_rload1">—</td></tr>
+            <tr><td>Required heating element (12V)</td><td id="res_rheater">—</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inductor detail + Water -->
+    <div class="analysis-grid">
+      <div class="analysis-card">
+        <h3>Inductor sizing detail</h3>
+        <div class="formula-box">
+          L = (V_in − V_out) × D / (f_sw × ΔI_L)<br>
+          &nbsp;&nbsp;= (<span id="f_vin">18</span> − <span id="f_vout">12</span>) × <span id="f_D">0.67</span> / (<span id="f_fsw">50k</span> × <span id="f_dil">3.75</span>)<br>
+          &nbsp;&nbsp;= <span style="color:var(--teal)" id="f_L">—</span>
+        </div>
+        <table class="table" style="margin-top:12px">
+          <tr><td>Peak inductor current</td><td id="ind_ipeak">—</td></tr>
+          <tr><td>RMS inductor current</td><td id="ind_irms">—</td></tr>
+          <tr><td>Inductor volt-seconds</td><td id="ind_vs">—</td></tr>
+          <tr><td>Min saturation current</td><td id="ind_isat">—</td></tr>
+          <tr><td>Recommended core</td><td id="ind_core" style="color:var(--amber)">—</td></tr>
+        </table>
+      </div>
+
+      <div class="analysis-card">
+        <h3>Cooking capacity estimate</h3>
+        <div class="water-box">
+          <div>
+            <div class="water-label">Theoretical water (boil from T₀)</div>
+            <div class="water-val" style="color:var(--teal)" id="water_theory">—</div>
+            <div class="water-label" id="water_theory_l">—</div>
+          </div>
+          <div>
+            <div class="water-label">Practical (−<span id="wloss_pct">25</span>% loss)</div>
+            <div class="water-val" style="color:var(--accent)" id="water_practical">—</div>
+            <div class="water-label" id="water_practical_l">—</div>
+          </div>
+        </div>
+        <div class="formula-box" style="margin-top:12px">
+          E_session = P_cook × t = <span id="w_e">—</span> Wh<br>
+          m = E × 3600 / (c_p × (100 − T₀))<br>
+          &nbsp;&nbsp;= <span id="w_e_j">—</span> J / (<span id="w_cp">4186</span> × <span id="w_dt">75</span> °C)<br>
+          &nbsp;&nbsp;= <span style="color:var(--teal)" id="w_m">—</span> kg
+        </div>
+        <table class="table" style="margin-top:12px">
+          <tr><td>Session energy</td><td id="w_esess">—</td></tr>
+          <tr><td>Min battery contribution</td><td id="w_bat">—</td></tr>
+          <tr><td>Cups of rice (approx.)</td><td id="w_rice" style="color:var(--amber)">—</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="scroll-hint">VARY Phase 1 — Synchronous Buck Design Calculator · adjust sliders to update all values live</div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (v, d=2) => isNaN(v) ? '—' : parseFloat(v.toFixed(d));
+const fmtU = (v, d=2, u='') => isNaN(v) ? '—' : v.toFixed(d) + (u ? ' ' + u : '');
+
+function getParams() {
+  return {
+    vin_max: +$('vin_max').value,
+    vin_nom: +$('vin_nom').value,
+    ppv: +$('ppv').value,
+    impp: +$('impp').value,
+    vout: +$('vout').value,
+    pmax: +$('pmax').value,
+    fsw: +$('fsw').value * 1e3,
+    ripple_i_pct: +$('ripple_i').value / 100,
+    ripple_v_pct: +$('ripple_v').value / 100,
+    rdson: +$('rdson').value * 1e-3,
+    pcook: +$('pcook').value,
+    t0: +$('t0').value,
+    hloss: +$('hloss').value / 100,
+    tsess: +$('tsess').value,
+  };
+}
+
+let chartDuty, chartLoss;
+
+function initCharts() {
+  chartDuty = new Chart($('chartDuty'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'D', data: [], borderColor: '#39d0a0', backgroundColor: 'rgba(57,208,160,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'V_in (V)', color: '#8b949e', font: { size: 11 } }, ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+        y: { title: { display: true, text: 'D', color: '#8b949e', font: { size: 11 } }, min: 0, max: 1, ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }
+      }
+    }
+  });
+
+  chartLoss = new Chart($('chartLoss'), {
+    type: 'doughnut',
+    data: { labels: ['Conduction (HS)', 'Conduction (LS)', 'Switching', 'Inductor DCR'], datasets: [{ data: [1,1,1,1], backgroundColor: ['#58a6ff','#bc8cff','#f85149','#d29922'], borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      cutout: '60%'
+    }
+  });
+}
+
+function calculate() {
+  const p = getParams();
+
+  $('lbl_vin_max').textContent = p.vin_max;
+  $('lbl_vin_nom').textContent = p.vin_nom;
+  $('lbl_ppv').textContent = p.ppv;
+  $('lbl_impp').textContent = (+$('impp').value).toFixed(2);
+  $('lbl_vout').textContent = p.vout;
+  $('lbl_pmax').textContent = p.pmax;
+  $('lbl_fsw').textContent = +$('fsw').value;
+  $('lbl_ripple_i').textContent = +$('ripple_i').value;
+  $('lbl_ripple_v').textContent = +$('ripple_v').value;
+  $('lbl_rdson').textContent = +$('rdson').value;
+  $('lbl_pcook').textContent = p.pcook;
+  $('lbl_t0').textContent = p.t0;
+  $('lbl_hloss').textContent = +$('hloss').value;
+  $('lbl_tsess').textContent = p.tsess;
+
+  const D_nom = p.vout / p.vin_nom;
+  const D_min = p.vout / p.vin_max;
+  const D_max = Math.min(p.vout / Math.max(p.vout + 1, p.vin_nom * 0.7), 0.95);
+
+  const I_out_max = p.pmax / p.vout;
+  const dIL = p.ripple_i_pct * I_out_max;
+  const dVout = p.ripple_v_pct * p.vout;
+
+  const L = (p.vin_nom - p.vout) * D_nom / (p.fsw * dIL);
+  const L_uH = L * 1e6;
+
+  const C_out = dIL / (8 * p.fsw * dVout);
+  const C_out_uF = C_out * 1e6;
+
+  const C_in = I_out_max * D_nom * (1 - D_nom) / (p.fsw * 0.05 * p.vin_nom);
+  const C_in_uF = C_in * 1e6;
+
+  const I_peak = I_out_max + dIL / 2;
+  const I_rms_ind = Math.sqrt(I_out_max**2 + (dIL**2) / 12);
+
+  const V_ds_min = Math.ceil(p.vin_max * 1.5 / 10) * 10;
+  const I_ds_min = Math.ceil(I_peak * 1.3 / 5) * 5;
+
+  const I_rms_hs = I_out_max * Math.sqrt(D_nom);
+  const I_rms_ls = I_out_max * Math.sqrt(1 - D_nom);
+  const P_cond_hs = I_rms_hs**2 * p.rdson;
+  const P_cond_ls = I_rms_ls**2 * p.rdson;
+
+  const t_sw = 20e-9;
+  const P_sw = 0.5 * p.vin_nom * I_out_max * t_sw * p.fsw;
+
+  const dcr = L_uH * 0.003;
+  const P_dcr = I_out_max**2 * dcr;
+
+  const P_loss_total = P_cond_hs + P_cond_ls + P_sw + P_dcr;
+  const P_out_real = p.pmax - P_loss_total;
+  const eff = (P_out_real / p.pmax) * 100;
+
+  const R_mpp = p.vin_nom / p.impp;
+  const R_pvc = p.vout**2 / p.pcook;
+  const R_batc = p.vout**2 / p.pcook;
+  const R_heater = p.vout**2 / p.pcook;
+  const constraint_ok = R_pvc < R_mpp;
+
+  const E_sess = p.pcook * p.tsess;
+  const dT = 100 - p.t0;
+  const m_theory = (E_sess * 3600) / (4186 * dT);
+  const m_practical = m_theory * (1 - p.hloss);
+  const cups_rice = Math.floor(m_practical / 0.18);
+
+  $('res_D').textContent = D_nom.toFixed(3);
+  $('res_D_range').textContent = `range: ${D_min.toFixed(2)} – ${Math.min(D_nom * 1.3, 0.95).toFixed(2)}`;
+  $('res_L').textContent = L_uH.toFixed(1);
+  $('res_L_iripple').textContent = `ΔI_L = ${dIL.toFixed(2)} A`;
+  $('res_Cout').textContent = C_out_uF.toFixed(0);
+  $('res_Cout_vripple').textContent = `ΔV = ${(dVout * 1000).toFixed(0)} mV`;
+  $('res_Cin').textContent = C_in_uF.toFixed(0);
+
+  $('hs_vds').textContent = V_ds_min + 'V';
+  $('hs_ids').textContent = I_ds_min + 'A';
+  $('hs_pcond').textContent = P_cond_hs.toFixed(2) + ' W';
+  $('ls_vds').textContent = V_ds_min + 'V';
+  $('ls_ids').textContent = I_ds_min + 'A';
+  $('ls_pcond').textContent = P_cond_ls.toFixed(2) + ' W';
+
+  const mos_suggest = V_ds_min <= 40 ? 'IRFZ44N / IRF3205' : V_ds_min <= 60 ? 'IPP060N06N / IRLZ44N' : 'IRL2910S';
+  $('hs_suggest').textContent = mos_suggest;
+  $('ls_suggest').textContent = mos_suggest;
+
+  $('res_eff').innerHTML = `<span style="color:${eff>93?'#3fb950':eff>88?'#d29922':'#f85149'}">${eff.toFixed(1)}%</span>`;
+  $('res_ploss').textContent = P_loss_total.toFixed(2) + ' W';
+  $('res_iout').textContent = I_out_max.toFixed(2) + ' A';
+
+  $('res_rload2').textContent = R_pvc.toFixed(2) + ' Ω';
+  $('res_rmpp').textContent = R_mpp.toFixed(2) + ' Ω';
+  $('res_check').innerHTML = constraint_ok
+    ? `<span class="tag ok">PASS — constraint satisfied</span>`
+    : `<span class="tag err">FAIL — need larger load R or smaller P_cook</span>`;
+  $('res_rload1').textContent = R_batc.toFixed(2) + ' Ω';
+  $('res_rheater').textContent = R_heater.toFixed(2) + ' Ω';
+
+  $('constraint_box').innerHTML = `
+    <div><span class="c-label">R_mpp = V_mpp / I_mpp = </span><span class="c-val">${p.vin_nom.toFixed(1)} / ${p.impp.toFixed(2)} = ${R_mpp.toFixed(2)} Ω</span></div>
+    <div><span class="c-label">R_pvc = V_out² / P_cook = </span><span class="c-val">${p.vout}² / ${p.pcook} = ${R_pvc.toFixed(2)} Ω</span></div>
+    <div><span class="c-label">Constraint: R_pvc &lt; R_mpp → </span>
+    ${constraint_ok
+      ? `<span class="c-pass">${R_pvc.toFixed(2)} &lt; ${R_mpp.toFixed(2)} ✓ Buck always sufficient</span>`
+      : `<span class="c-fail">${R_pvc.toFixed(2)} ≥ ${R_mpp.toFixed(2)} ✗ Boost stage would be required</span>`
+    }</div>
+    <div><span class="c-label">Buck input impedance at MPP: </span><span class="c-val">R_in = R_pvc / D² = ${(R_pvc / D_nom**2).toFixed(2)} Ω</span></div>`;
+
+  $('f_vin').textContent = p.vin_nom;
+  $('f_vout').textContent = p.vout;
+  $('f_D').textContent = D_nom.toFixed(3);
+  $('f_fsw').textContent = (p.fsw / 1e3).toFixed(0) + 'k';
+  $('f_dil').textContent = dIL.toFixed(3);
+  $('f_L').textContent = L_uH.toFixed(2) + ' μH';
+
+  $('ind_ipeak').textContent = I_peak.toFixed(2) + ' A';
+  $('ind_irms').textContent = I_rms_ind.toFixed(2) + ' A';
+  $('ind_vs').textContent = ((p.vin_nom - p.vout) * D_nom / p.fsw * 1e6).toFixed(2) + ' μV·s';
+  $('ind_isat').textContent = (I_peak * 1.2).toFixed(2) + ' A (min)';
+  const core = L_uH < 10 ? 'Ferrite toroid (T106-26)' : L_uH < 30 ? 'Ferrite toroid (T130-26 / T157-2)' : 'E-core ferrite (EE42)';
+  $('ind_core').textContent = core;
+
+  $('water_theory').textContent = m_theory.toFixed(2);
+  $('water_theory_l').textContent = 'kg (≈ ' + (m_theory * 1).toFixed(2) + ' L)';
+  $('water_practical').textContent = m_practical.toFixed(2);
+  $('water_practical_l').textContent = 'kg (≈ ' + (m_practical).toFixed(2) + ' L)';
+  $('wloss_pct').textContent = +$('hloss').value;
+  $('w_e').textContent = E_sess.toFixed(1);
+  $('w_e_j').textContent = (E_sess * 3600).toFixed(0);
+  $('w_cp').textContent = '4186';
+  $('w_dt').textContent = dT.toFixed(0);
+  $('w_m').textContent = m_theory.toFixed(3) + ' kg';
+  $('w_esess').textContent = E_sess.toFixed(1) + ' Wh';
+  $('w_bat').textContent = (E_sess * (1 - Math.min(0.8, p.pcook / p.ppv))).toFixed(1) + ' Wh';
+  $('w_rice').textContent = cups_rice + ' cup' + (cups_rice !== 1 ? 's' : '') + ' (180ml each)';
+
+  const vins = [];
+  const duties = [];
+  for (let v = Math.max(p.vout + 1, 10); v <= p.vin_max + 5; v += 1) {
+    vins.push(v);
+    duties.push(Math.min(p.vout / v, 0.95));
+  }
+  chartDuty.data.labels = vins;
+  chartDuty.data.datasets[0].data = duties;
+  chartDuty.update('none');
+
+  const lossData = [P_cond_hs, P_cond_ls, P_sw, P_dcr];
+  chartLoss.data.datasets[0].data = lossData;
+  chartLoss.update('none');
+
+  const lossCols = ['#58a6ff', '#bc8cff', '#f85149', '#d29922'];
+  const lossNames = ['Cond HS', 'Cond LS', 'Switching', 'Inductor DCR'];
+  $('loss_legend').innerHTML = lossData.map((v, i) =>
+    `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${lossCols[i]}"></span>${lossNames[i]}: ${v.toFixed(2)}W</span>`
+  ).join('');
+}
+
+const PARAM_IDS = ['vin_max','vin_nom','ppv','impp','vout','pmax','fsw','ripple_i','ripple_v','rdson','pcook','t0','hloss','tsess'];
+
+function exportParams() {
+  const descriptions = {
+    vin_max:   'V_in max — PV open-circuit voltage worst case (V). Sets minimum MOSFET V_ds rating.',
+    vin_nom:   'V_in nominal — PV voltage at maximum power point V_mpp (V). Used for duty cycle and inductor sizing.',
+    ppv:       'PV panel peak power P_wp (W). Determines available energy and I_mpp.',
+    impp:      'PV current at maximum power point I_mpp (A). Used to compute R_mpp = V_mpp / I_mpp.',
+    vout:      'Buck converter output voltage V_out (V). Typically equals battery nominal voltage (12V).',
+    pmax:      'Maximum design power P_max (W). Worst-case load for inductor, capacitor and MOSFET sizing.',
+    fsw:       'Switching frequency f_sw (kHz). Higher = smaller inductor, more switching losses.',
+    ripple_i:  'Inductor current ripple target delta_IL (% of I_out_max). Typical range: 20-30%.',
+    ripple_v:  'Output voltage ripple target delta_Vout (% of V_out). Target < 1% for stable battery charging.',
+    rdson:     'MOSFET on-resistance R_ds(on) estimate per FET (mOhm). Lower = less conduction loss.',
+    pcook:     'Cooking load power P_cook (W). Used for R_pvc and R_batc sizing and water boil estimate.',
+    t0:        'Ambient / initial water temperature T0 (degC). Used in boiling energy calculation.',
+    hloss:     'Thermal loss factor eta_loss (%). Accounts for heat lost to vessel walls and environment.',
+    tsess:     'Cooking session duration t_session (hours). Used to compute total session energy E = P * t.',
+  };
+  const params = {};
+  PARAM_IDS.forEach(id => { params[id] = +document.getElementById(id).value; });
+  const data = {
+    _vary: 'phase1',
+    _version: '1.0',
+    _exported: new Date().toISOString(),
+    _descriptions: descriptions,
+    params: params,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vary_phase1_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('Configuration exported', 'ok');
+}
+
+function importParams(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data._vary || !data.params) throw new Error('Not a VARY config file');
+      let loaded = 0;
+      PARAM_IDS.forEach(id => {
+        if (data.params[id] !== undefined) {
+          document.getElementById(id).value = data.params[id];
+          loaded++;
+        }
+      });
+      calculate();
+      showToast('Loaded ' + loaded + ' parameters from ' + file.name, 'ok');
+    } catch(err) {
+      showToast('Import failed: ' + err.message, 'err');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', calculate));
+
+initCharts();
+calculate();
+</script>
+</body>
+</html>

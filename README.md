@@ -80,6 +80,71 @@ In many off-grid areas of Madagascar and similar developing contexts, households
                     │              ┌──────────────┼──────────┐    │
                     │              │                         │    │
                     │    ┌─────────▼──────┐    ┌────────────▼──┐ │
+                    │    │   SW_batc      │    │   SW_pvc      │ │
+                    │    │  (on/off)      │    │  (on/off)     │ │
+                    │    └─────────┬──────┘    └──────┬────────┘ │
+                    │              │                   │          │
+                    │    ┌─────────▼──────┐    ┌──────▼────────┐ │
+                    │    │ CookingLoad_   │    │ CookingLoad_  │ │
+                    │    │    batc        │    │    pvc        │ │
+                    │    │ Battery-fed    │    │  PV-fed       │ │
+                    │    │ Constant draw  │    │ MPPT-tracked  │ │
+                    │    │ R_batc=Vbat²/P │    │ R_pvc < R_mpp │ │
+                    │    └────────────────┘    └───────────────┘ │
+                    │                                              │
+                    │         ┌────────────────────┐              │
+                    │         │   Microcontroller  │              │
+                    │         │  (MPPT + Switch    │              │
+                    │         │   Arbitration)     │              │
+                    │         └────────────────────┘              │
+                    └─────────────────────────────────────────────┘
+```
+
+### Component roles
+
+| Component | Role |
+| --- | --- |
+| PV Panel (50–150 Wp) | Primary energy source |
+| SW\_PV | Connects/disconnects PV from the converter |
+| Synchronous Buck Converter | Steps down PV voltage to battery/load voltage |
+| MPPT Algorithm | Adjusts duty cycle to track maximum power point |
+| Battery (12V, 20 Ah) | Energy buffer — stores excess PV, supplies load at night |
+| SW\_batc | Controls battery discharge to CookingLoad\_batc |
+| SW\_pvc | Controls PV power delivery to CookingLoad\_pvc |
+| CookingLoad\_batc | Resistive heating element — battery fed. Sizing: `R_batc = Vbat² / P`. No MPPT constraint applies. |
+| CookingLoad\_pvc | Resistive heating element — PV fed through buck converter. Must satisfy `R_pvc < R_mpp` so the buck can always reach MPP without a boost stage. |
+| Microcontroller | Runs MPPT algorithm + switch arbitration logic |
+
+### Naming rationale
+
+The subscript **batc** (battery-cooking) and **pvc** (PV-cooking) encode the *energy source* of each load path directly in the component name. This disambiguates the two load branches throughout the design — the `R_pvc < R_mpp` constraint applies exclusively to the PV-fed path and has no relevance to the battery-fed path.
+
+### Load sizing summary
+
+| Load | Source | Sizing equation | Constraint |
+| --- | --- | --- | --- |
+| CookingLoad\_batc | Battery | `R_batc = Vbat² / P_cook` | None — battery is a voltage source |
+| CookingLoad\_pvc | PV (via buck) | `R_pvc = Vout² / P_cook` | Must satisfy `R_pvc < R_mpp = Vmpp / Impp` |
+
+The `R_pvc < R_mpp` condition ensures that the buck converter's input impedance transformation (`R_in = R_pvc / D²`) can always match `R_mpp` with a duty cycle D < 1, making a boost stage unnecessary.
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │              VARY System                     │
+                    │                                              │
+  ┌──────────┐      │  ┌──────────┐    ┌─────────────────────┐   │
+  │  PV Panel│──────┼─▶│ SW_PV   │───▶│  Synchronous Buck   │   │
+  │ 50-150 Wp│      │  │(on/off) │    │  Converter + MPPT   │   │
+  └──────────┘      │  └──────────┘    └──────────┬──────────┘   │
+                    │                             │               │
+                    │                    ┌────────▼────────┐      │
+                    │                    │    Battery      │      │
+                    │                    │  12V / 20 Ah   │      │
+                    │                    └────────┬────────┘      │
+                    │                             │               │
+                    │              ┌──────────────┼──────────┐    │
+                    │              │                         │    │
+                    │    ┌─────────▼──────┐    ┌────────────▼──┐ │
                     │    │   SW_Load1     │    │   SW_Load2    │ │
                     │    │  (on/off)      │    │  (on/off)     │ │
                     │    └─────────┬──────┘    └──────┬────────┘ │
